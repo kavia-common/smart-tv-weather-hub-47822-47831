@@ -1,116 +1,119 @@
 import Blits from '@lightningjs/blits'
 
 import Loader from '../components/Loader.js'
-import Button from '../components/Button.js'
 import TopBar from '../components/TopBar.js'
 import SideNav from '../components/SideNav.js'
+import WeatherCard from '../components/WeatherCard.js'
+import ForecastStrip from '../components/ForecastStrip.js'
 
-const colors = ['#f5f3ff', '#ede9fe', '#ddd6fe', '#c4b5fd', '#a78bfa']
+import {
+  useAppState,
+  getSelectedLocation,
+  setSelectedLocation,
+  getUnits,
+  isLoading as getIsLoading,
+  setLoading,
+  getError,
+  setError,
+  clearError,
+  getLastUpdated,
+} from '../state/appState.js'
+
+import { fetchCurrentWeather, fetchForecast } from '../services/weatherService.js'
+
+// Default fallback location (San Francisco) if none selected yet
+const DEFAULT_LOCATION = { id: 'sf', name: 'San Francisco', lat: 37.7749, lon: -122.4194 }
 
 export default Blits.Component('Home', {
-  components: {
-    Loader,
-    Button,
-    TopBar,
-    SideNav,
-  },
+  components: { Loader, TopBar, SideNav, WeatherCard, ForecastStrip },
+
   template: `
-    <Element w="1920" h="1080" color="#f9fafb">
-      <!-- Ocean Professional Top Bar -->
+    <Element w="1920" h="1080" :color="$theme.bg">
+      <!-- Top Bar -->
       <TopBar
         title="Weather Hub"
-        location="Welcome"
+        :location="$locationText"
         :timeText="$timeText"
         :showBack="false"
-        :actions="[{id:'act1',label:'Action'}]"
+        :actions="$topActions"
         @onAction="$onTopAction"
       />
 
-      <!-- Side navigation rail -->
+      <!-- Side navigation -->
       <SideNav
         x="0"
         y="120"
         :items="$navItems"
         :selectedId="$selectedNav"
         @onSelect="$onNavSelect"
+        @onNavigate="$onSideNavNavigate"
       />
 
-      <!-- Preserve existing demo animation content centered area -->
-      <Element x="320" y="0" w="1600" h="1080">
-        <Element :y.transition="$y">
-          <Element
-            src="assets/logo.png"
-            w="200"
-            h="200"
-            :scale.transition="{value: $scale, duration: 500}"
-            :rotation.transition="{value: $rotation, duration: 800}"
-            :x.transition="{value: $x, delay: 200, duration: 1200, easing: 'cubic-bezier(1,-0.64,.39,1.44)'}"
-            mount="{x: 0.5}"
-            y="320"
-            :effects="[$shader('radius', {radius: 8})]"
-          />
-          <Loader :x="(1600 / 2)" mount="{x: 0.5}" y="600" w="160" :alpha.transition="$loaderAlpha" :loaderColor="$color" />
-          <Element y="600" :alpha.transition="$textAlpha">
-            <Text size="80" align="center" maxwidth="1600">Hello!</Text>
-            <Text
-              size="50"
-              align="center"
-              y="120"
-              :x="1600/2"
-              maxwidth="500"
-              lineheight="64"
-              mount="{x: 0.5}"
-              color="#111827aa"
-              content="Let's get started with Lightning 3 & Blits"
+      <!-- Main content area -->
+      <Element x="340" y="140" w="1540" h="900">
+        <!-- Status area -->
+        <Element :alpha="$error ? 1 : 0" x="0" y="0" w="1540" h="80" r="16" :color="$theme.error" alpha="0.12">
+          <Text x="24" y="24" w="1492" h="32" fontSize="24" :textColor="$theme.errorText" :content="$errorMessage" />
+        </Element>
+
+        <!-- Loading overlay -->
+        <Element :alpha="$isLoading ? 1 : 0" x="0" y="0" w="1540" h="900" :color="$theme.surface" alpha="0.0" zIndex="5">
+          <Loader x="770" y="360" />
+        </Element>
+
+        <!-- Weather grid -->
+        <Element x="0" y="0" w="1540" h="360">
+          <Element x="0" y="0" w="540" h="320">
+            <WeatherCard
+              ref="card"
+              :id="'current'"
+              :title="$locationTitle"
+              :temperature="$currentTemp"
+              :condition="$currentCond"
+              :icon="$currentIcon"
+              :details="$currentDetails"
             />
+          </Element>
+
+          <!-- Last updated + units -->
+          <Element x="560" y="0" w="960" h="320" r="20" :color="$theme.surface">
+            <Element x="0" y="0" w="960" h="320" :color="$theme.primary" alpha="0.04" r="20" />
+            <Element x="1" y="1" w="958" h="318" :color="$theme.surface" r="18" />
+            <Text x="24" y="24" w="912" h="36" fontSize="28" :textColor="$theme.text" :content="$panelTitle" />
+            <Text x="24" y="68" w="912" h="28" fontSize="22" :textColor="$theme.textSub" :content="$panelSubtitle" />
           </Element>
         </Element>
 
-        <Element w="13.5%" h="40" x="43%" y="10%" color="{top: '#763efb', bottom: '#433484'}">
-          <Button ref="btn" />
+        <!-- Forecast strip -->
+        <Element x="0" y="380" w="1540" h="260">
+          <ForecastStrip
+            ref="strip"
+            :items="$forecastItems"
+            :selectedId="$selectedForecastId"
+            @onSelect="$onForecastSelect"
+            @onNavigate="$onStripNavigate"
+          />
         </Element>
       </Element>
     </Element>
   `,
-  state() {
-    return {
-      /**
-       * Y-position of the entire page contents
-       * @type {number}
-       */
-      y: 0,
-      /**
-       * X-position of the logo, used to create slide in transition
-       * @type {number}
-       */
-      x: -1000,
-      /**
-       * Rotation of the logo, used to create a spinning transition
-       * @type {number}
-       */
-      rotation: 0,
-      /**
-       * Scale of the logo, used to create a zoom-in / zoom-out transition
-       * @type {number}
-       */
-      scale: 1,
-      /**
-       * Alpha of the loader component, used to create a fade-in / fade-out transition
-       * @type {number}
-       */
-      loaderAlpha: 0,
-      /**
-       * Alpha of the text, used to create a fade-in transition
-       * @type {number}
-       */
-      textAlpha: 0,
-      /**
-       * Color passed into the loader component
-       * @type {string}
-       */
-      color: '',
 
-      // New UI state
+  state() {
+    const { selectedLocation, units } = useAppState()
+    return {
+      // Theme (Ocean Professional)
+      theme: {
+        primary: 0x2563EBff,
+        secondary: 0xF59E0Bff,
+        text: 0x111827ff,
+        textSub: 0x111827cc,
+        bg: 0xf9fafbff,
+        surface: 0xffffffff,
+        error: 0xEF4444ff,
+        errorText: 0xEF4444ff,
+      },
+
+      // UI + clock
       timeText: '',
       navItems: [
         { id: 'home', label: 'Home' },
@@ -118,75 +121,283 @@ export default Blits.Component('Home', {
         { id: 'settings', label: 'Settings' },
       ],
       selectedNav: 'home',
+      topActions: [
+        { id: 'refresh', label: 'Refresh' },
+        { id: 'units', label: 'Units' },
+      ],
+
+      // data
+      location: selectedLocation.value || null,
+      unitsRef: units.value || 'metric',
+      current: null,
+      forecast: null,
+
+      // computed display
+      locationText: '',
+      locationTitle: '',
+      currentTemp: '--',
+      currentCond: '',
+      currentIcon: '',
+      currentDetails: [],
+      panelTitle: '',
+      panelSubtitle: '',
+      forecastItems: [],
+      selectedForecastId: null,
+
+      // process
+      isLoading: false,
+      error: null,
+
+      // focus handling: 'nav' | 'card' | 'strip'
+      focusArea: 'card',
     }
   },
+
   hooks: {
-    ready() {
-      this.rotateColors(200)
+    async ready() {
+      // Ensure a default location exists
+      if (!getSelectedLocation()) {
+        setSelectedLocation(DEFAULT_LOCATION)
+        this.location = DEFAULT_LOCATION
+      } else {
+        this.location = getSelectedLocation()
+      }
 
-      this.loaderAlpha = 1
-      this.x = 1920 / 2
-
-      this.$setTimeout(() => {
-        this.rotation = 720
-        this.scale = 1.5
-      }, 3000)
-
-      this.$setTimeout(() => {
-        this.scale = 1
-      }, 3000 + 300)
-
-      this.$setTimeout(() => {
-        this.y = -60
-        this.loaderAlpha = 0
-        this.scale = 1
-        this.textAlpha = 1
-      }, 6000)
-
-      // clock update
+      // initial clock
       this.updateClock()
       this._clock = this.$setInterval(() => this.updateClock(), 60 * 1000)
+
+      // fetch initial data
+      await this.refreshData()
+      // focus default area
+      this.focusCard()
     },
     focus() {
-      this.$select('btn').$focus() // Select the button with the ref 'btn'
+      // Restore focus to current area
+      this.applyFocus()
     },
     destroy() {
       if (this._clock) this.$clearInterval(this._clock)
-    }
-  },
-  methods: {
-    /**
-     * Method to rotate the colors of the loader
-     * @param {number} interval - interval in ms
-     */
-    rotateColors(interval) {
-      let i = 0
-      this.$setInterval(() => {
-        i++
-        if (i >= colors.length) i = 0
-        this.color = colors[i]
-      }, interval)
     },
+  },
 
+  computed: {
+    errorMessage() {
+      return this.error ? String(this.error) : ''
+    },
+  },
+
+  methods: {
     updateClock() {
       const now = new Date()
       this.timeText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     },
 
-    // handle top bar action
-    onTopAction(id) {
-      // simple placeholder action
-      if (id === 'act1') {
-        // no-op
+    buildDisplays() {
+      const loc = this.location || DEFAULT_LOCATION
+      this.locationText = `${loc.name || 'Unknown'}`
+      this.locationTitle = `${loc.name || 'Now'}`
+
+      // Current
+      if (this.current?.current) {
+        const unit = this.current.units?.temperature || (this.unitsRef === 'imperial' ? 'F' : 'C')
+        const t = this.current.current.temperature
+        this.currentTemp = t != null ? `${Math.round(t)}°${unit}` : '--'
+        this.currentCond = this.current.current.iconKey || ''
+        this.currentIcon = this.iconPathFor(this.current.current.iconKey)
+        const windUnit = this.current.units?.wind || (this.unitsRef === 'imperial' ? 'mph' : 'km/h')
+        this.currentDetails = [
+          { label: 'Humidity', value: this.safeVal(this.current.current.humidity, '%') },
+          { label: 'Wind', value: this.safeVal(this.current.current.windSpeed, ` ${windUnit}`) },
+          { label: 'Direction', value: this.safeVal(this.current.current.windDirection, '°') },
+          { label: 'Updated', value: this.formatUpdated(getLastUpdated()) },
+        ]
+      } else {
+        this.currentTemp = '--'
+        this.currentCond = ''
+        this.currentIcon = ''
+        this.currentDetails = []
+      }
+
+      // Panel info
+      this.panelTitle = 'Overview'
+      this.panelSubtitle = this.current?.meta?.source ? `Source: ${this.current.meta.source}` : ''
+
+      // Forecast
+      this.forecastItems = Array.isArray(this.forecast?.daily)
+        ? this.forecast.daily.map((d, i) => {
+            const unit = this.current?.units?.temperature || (this.unitsRef === 'imperial' ? 'F' : 'C')
+            const hi = d.high != null ? Math.round(d.high) : null
+            const lo = d.low != null ? Math.round(d.low) : null
+            const temp = hi != null && lo != null ? `${hi}°/${lo}°${unit}` : '--'
+            const id = `${d.date}-${i}`
+            return {
+              id,
+              time: this.formatDateLabel(d.date, i),
+              icon: this.iconPathFor(d.iconKey),
+              temp,
+            }
+          })
+        : []
+      this.selectedForecastId = this.forecastItems[0]?.id || null
+    },
+
+    formatDateLabel(dateStr, idx) {
+      try {
+        const d = new Date(dateStr)
+        const today = new Date()
+        const diff = Math.floor((d - new Date(today.toDateString())) / (24 * 60 * 60 * 1000))
+        if (idx === 0 || diff === 0) return 'Today'
+        if (diff === 1) return 'Tomorrow'
+        return d.toLocaleDateString(undefined, { weekday: 'short' })
+      } catch (_e) {
+        return dateStr || ''
       }
     },
 
-    // handle side nav selection
+    iconPathFor(key) {
+      if (!key) return ''
+      // Expecting icons at public/assets/weather/<key>.png
+      return `assets/weather/${key}.png`
+    },
+
+    safeVal(v, suffix = '') {
+      if (v == null || !Number.isFinite(Number(v))) return '--'
+      return `${Math.round(Number(v))}${suffix}`
+    },
+
+    formatUpdated(iso) {
+      if (!iso) return '--'
+      try {
+        const d = new Date(iso)
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      } catch (_e) {
+        return '--'
+      }
+    },
+
+    // Data flow
+    async refreshData() {
+      const loc = this.location || DEFAULT_LOCATION
+      const units = getUnits() || this.unitsRef || 'metric'
+
+      clearError()
+      setLoading(true)
+      this.isLoading = true
+      this.error = null
+
+      try {
+        const [current, forecast] = await Promise.all([
+          fetchCurrentWeather({ lat: loc.lat, lon: loc.lon, units }),
+          fetchForecast({ lat: loc.lat, lon: loc.lon, units, days: 7 }),
+        ])
+        this.current = current
+        this.forecast = forecast
+        this.unitsRef = units
+        this.buildDisplays()
+      } catch (e) {
+        this.error = e?.message || String(e)
+        setError(this.error)
+      } finally {
+        setLoading(false)
+        this.isLoading = getIsLoading()
+      }
+    },
+
+    // Actions
+    onTopAction(id) {
+      if (id === 'refresh') {
+        this.refreshData()
+      } else if (id === 'units') {
+        // toggle units
+        this.unitsRef = this.unitsRef === 'metric' ? 'imperial' : 'metric'
+        this.refreshData()
+      }
+    },
+
+    // Side nav
     onNavSelect(id) {
       this.selectedNav = id
       if (id === 'settings') this.$router.to('/settings')
-      if (id === 'details') this.$router.to('/details/sf')
+      if (id === 'details') this.$router.to('/details/' + (this.location?.id || 'sf'))
       if (id === 'home') this.$router.to('/')
+    },
+    onSideNavNavigate(dir) {
+      if (dir === 'right' || dir === 'down') {
+        this.focusCard()
+      }
+    },
+
+    // Forecast strip handlers
+    onStripNavigate(dir) {
+      if (dir === 'up') {
+        this.focusCard()
+      } else if (dir === 'left') {
+        this.focusNav()
+      }
+    },
+    onForecastSelect(id) {
+      this.selectedForecastId = id
+      // Potentially navigate to day details in future
+    },
+
+    // Focus management
+    applyFocus() {
+      if (this.focusArea === 'nav') {
+        const nav = this.$select('SideNav')
+        if (nav && nav.$focus) nav.$focus()
+      } else if (this.focusArea === 'card') {
+        const card = this.$select('card')
+        if (card && card.$focus) card.$focus()
+      } else if (this.focusArea === 'strip') {
+        const strip = this.$select('strip')
+        if (strip && strip.$focus) strip.$focus()
+      }
+    },
+    focusNav() {
+      this.focusArea = 'nav'
+      this.applyFocus()
+    },
+    focusCard() {
+      this.focusArea = 'card'
+      this.applyFocus()
+    },
+    focusStrip() {
+      this.focusArea = 'strip'
+      this.applyFocus()
+    },
+  },
+
+  input: {
+    up() {
+      // Move focus to TopBar doesn't hold focus; keep between card and strip
+      if (this.focusArea === 'strip') {
+        this.focusCard()
+      } else {
+        this.focusNav()
+      }
+    },
+    down() {
+      if (this.focusArea === 'card') {
+        this.focusStrip()
+      }
+    },
+    left() {
+      if (this.focusArea === 'card') {
+        this.focusNav()
+      }
+    },
+    right() {
+      if (this.focusArea === 'nav') {
+        this.focusCard()
+      }
+    },
+    enter() {
+      // No-op at page; child components handle enter
+    },
+    back() {
+      // Could open exit modal; for now, navigate to settings
+      this.$router.to('/settings')
     },
   },
 })
