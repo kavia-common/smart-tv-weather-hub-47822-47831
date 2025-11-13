@@ -42,6 +42,48 @@ npm run build
 This will create a production version of the app in the `dist` folder.
 
 
+### Smart TV Weather App - Run and Navigation Guide
+
+Run locally:
+1) Install dependencies
+   npm install
+2) Start dev server
+   npm run dev
+Default: http://localhost:3000
+
+Build:
+   npm run build
+Preview:
+   npm run preview
+
+Optional environment variables (.env):
+- VITE_API_BASE: Base URL for weather API (e.g., https://api.open-meteo.com)
+- VITE_BACKEND_URL: Backend URL if using a proxy/middleware
+- VITE_FRONTEND_URL: Public URL of frontend
+- VITE_WS_URL: WebSocket URL for realtime features
+- VITE_NODE_ENV: development | production
+- VITE_NEXT_TELEMETRY_DISABLED: true/false
+- VITE_ENABLE_SOURCE_MAPS: true/false
+- VITE_PORT: Port for dev server (default 3000)
+- VITE_TRUST_PROXY: true/false
+- VITE_LOG_LEVEL: debug | info | warn | error
+- VITE_HEALTHCHECK_PATH: e.g. /healthz
+- VITE_FEATURE_FLAGS: Comma-separated flags (e.g., cards,tts)
+- VITE_EXPERIMENTS_ENABLED: true/false
+
+TV navigation:
+- Up/Down/Left/Right to move focus
+- Enter to select
+- Back/Escape to go back
+- Unhandled input will bubble to parent component. Use this.parent.focus(e) to propagate further.
+
+Assets:
+- Place images in public/assets/
+- Reference as src="/assets/<file>"
+- Always include w and h on Element images
+Example:
+<Element src="/assets/sunny.png" w="128" h="128" />
+
 ### Resources
 
 - [Blits documentation](https://lightningjs.io/v3-docs/blits/getting_started/intro.html) - official documentation

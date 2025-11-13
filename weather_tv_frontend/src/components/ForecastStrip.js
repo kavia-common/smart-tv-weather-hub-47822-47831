@@ -35,6 +35,27 @@ export default Blits.Component('ForecastStrip', {
     safeItems() {
       return Array.isArray(this.items) ? this.items : []
     },
+    mapped() {
+      const toAsset = (icon) => {
+        if (!icon) return '/assets/sunny.png'
+        if (typeof icon === 'string' && icon.startsWith('/assets/')) return icon
+        const map = {
+          sunny: '/assets/sunny.png',
+          clear: '/assets/sunny.png',
+          cloudy: '/assets/cloudy.png',
+          overcast: '/assets/cloudy.png',
+          rain: '/assets/rain.png',
+          drizzle: '/assets/rain.png',
+          snow: '/assets/snow.png',
+          storm: '/assets/storm.png',
+          thunder: '/assets/storm.png',
+          fog: '/assets/fog.png',
+          mist: '/assets/fog.png',
+        }
+        return map[icon] || '/assets/sunny.png'
+      }
+      return this.safeItems.map((it) => ({ ...it, _icon: toAsset(it.icon) }))
+    },
   },
 
   methods: {
@@ -68,9 +89,9 @@ export default Blits.Component('ForecastStrip', {
 
       <!-- viewport -->
       <Element :x="$paddingX" y="30" :w="$viewportWidth" h="180" clipping="true">
-        <Element :x="$scrollX" y="0" :w="$safeItems.length * $itemWidth" h="180">
+        <Element :x="$scrollX" y="0" :w="$mapped.length * $itemWidth" h="180">
           <Element
-            :for="(it, i) in $safeItems"
+            :for="(it, i) in $mapped"
             :key="$it.id"
             :x="$i * $itemWidth"
             y="0"
@@ -84,7 +105,7 @@ export default Blits.Component('ForecastStrip', {
             <Element x="1" y="1" w="138" h="178" r="16" :color="$colors.surface" />
             <Text x="16" y="16" w="108" h="24" :content="$it.time" fontSize="20" :textColor="$colors.text" />
             <Element x="28" y="48" w="84" h="84" r="12" :color="$colors.primary" alpha="0.05">
-              <Element src="$it.icon" x="8" y="8" w="68" h="68" />
+              <Element :src="$it._icon" x="8" y="8" w="68" h="68" />
             </Element>
             <Text x="16" y="140" w="108" h="28" :content="$it.temp" fontSize="22" :textColor="$colors.primary" />
           </Element>

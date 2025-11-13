@@ -8,7 +8,7 @@ import Blits from '@lightningjs/blits'
  * - title: string - e.g., "Now" or location name
  * - temperature: string - e.g., "24°C"
  * - condition: string - e.g., "Partly Cloudy"
- * - icon: string - path under public/assets/ (image must have width/height)
+ * - icon: string - can be a semantic key (sunny, cloudy, rain, snow, storm, fog) or a full path under /assets/
  * - details: [{ label: string, value: string }]
  * - focused: boolean - external focus control (optional)
  *
@@ -30,6 +30,27 @@ export default Blits.Component('WeatherCard', {
         error: 0xEF4444ff,
       },
     }
+  },
+
+  computed: {
+    iconSrc() {
+      const icon = this.icon || 'sunny'
+      if (typeof icon === 'string' && icon.startsWith('/assets/')) return icon
+      const map = {
+        sunny: '/assets/sunny.png',
+        clear: '/assets/sunny.png',
+        cloudy: '/assets/cloudy.png',
+        overcast: '/assets/cloudy.png',
+        rain: '/assets/rain.png',
+        drizzle: '/assets/rain.png',
+        snow: '/assets/snow.png',
+        storm: '/assets/storm.png',
+        thunder: '/assets/storm.png',
+        fog: '/assets/fog.png',
+        mist: '/assets/fog.png',
+      }
+      return map[icon] || '/assets/sunny.png'
+    },
   },
 
   watch: {
@@ -61,8 +82,8 @@ export default Blits.Component('WeatherCard', {
 
       <!-- icon -->
       <Element x="360" y="24" w="136" h="136" r="16" :color="$colors.primary" alpha="0.05">
-        <Element :alpha="$icon ? 1 : 0">
-          <Element src="$icon" x="12" y="12" w="112" h="112" />
+        <Element>
+          <Element :src="$iconSrc" x="12" y="12" w="112" h="112" />
         </Element>
       </Element>
 
